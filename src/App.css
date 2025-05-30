@@ -37,6 +37,45 @@ header h1 {
   height: auto;
 }
 
+.mermaid-output {
+  margin-top: 2rem;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.mermaid-controls {
+  padding: 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+/* Markdown editor styles */
+.w-md-editor {
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.w-md-editor-text-pre > code,
+.w-md-editor-text-input {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace !important;
+  font-size: 14px !important;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .w-md-editor {
+    background-color: #1e1e1e !important;
+    color: #d4d4d4 !important;
+  }
+  
+  .w-md-editor-text-pre > code,
+  .w-md-editor-text-input {
+    color: #d4d4d4 !important;
+  }
+}
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
