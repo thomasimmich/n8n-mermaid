@@ -20,6 +20,7 @@ interface Node {
           }>;
         };
         outputKey?: string;
+        content?: string; // Added for sticky note content
       }>;
     };
   };
@@ -54,12 +55,24 @@ export function convertN8nToMermaid(n8nJsonString: string): string {
     // Define nodes
     nodes.forEach((node, index) => {
       const nodeType = node.type.split('.').pop() || '';
+
+      // Skip sticky note nodes for now
+      if (nodeType === 'stickyNote') {
+        return; 
+      }
+
       // Use node.name if available, otherwise fallback to node.type or node.id for the key
       const nodeKey = node.name || node.type || node.id; 
       const nodeId = `node${index}`;
       const label = `${nodeId}["${node.name || nodeType}\n(${nodeType})"]`; // Use node.name or type for display
       nodeLabels.push(label);
       nodeMap.set(nodeKey, nodeId); // Map using a more robust key
+
+      // Add sticky note content as a comment if available
+      if (nodeType === 'stickyNote' && node.parameters && 'content' in node.parameters && typeof node.parameters.content === 'string') {
+        const commentContent = node.parameters.content.replace(/\n/g, ' ').substring(0, 100) + (node.parameters.content.length > 100 ? '...' : ''); // Limit comment length
+        nodeLabels.push(`%% ${commentContent}`);
+      }
     });
 
     const edges: string[] = [];
