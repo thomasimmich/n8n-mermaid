@@ -64,7 +64,17 @@ export function convertN8nToMermaid(n8nJsonString: string): string {
       // Use node.name if available, otherwise fallback to node.type or node.id for the key
       const nodeKey = node.name || node.type || node.id; 
       const nodeId = `node${index}`;
-      const label = `${nodeId}["${node.name || nodeType}\n(${nodeType})"]`; // Use node.name or type for display
+      
+      let label;
+
+      // Display If and Switch nodes as diamonds by checking the full type property
+      const lowerCaseNodeType = node.type.toLowerCase();
+      if (lowerCaseNodeType.endsWith('.if') || lowerCaseNodeType.endsWith('.switch')) {
+          label = `${nodeId}{"${node.name || nodeType}\n(${nodeType})"}`; // Diamond shape
+      } else {
+          label = `${nodeId}["${node.name || nodeType}\n(${nodeType})"]`; // Rectangle shape
+      }
+
       nodeLabels.push(label);
       nodeMap.set(nodeKey, nodeId); // Map using a more robust key
 

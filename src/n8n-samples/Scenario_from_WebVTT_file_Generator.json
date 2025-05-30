@@ -1,0 +1,714 @@
+{
+  "name": "🏜️ Scenario from WebVTT file Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-scenario",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -5460,
+        700
+      ],
+      "id": "6f63d30b-d176-4081-b997-0dd2ae356f1a",
+      "name": "Webhook1",
+      "webhookId": "4fc918b5-9a00-47e2-8604-97639dc22542"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"gitId\": \"{{ $('Webhook1').item.json.body.gitID }}\",\n\"data\": \"{{ $json.data }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -340,
+        660
+      ],
+      "id": "b1157c4e-fee7-43f8-bdd5-d5a819dfde99",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.plainText }}",
+                    "rightValue": "WEBVTT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    },
+                    "id": "c30298f0-bfc5-47e4-aa83-3794933d6b3f"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "WebVTT Transcript"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "75341c02-5d92-4dba-92cc-15d216f295da",
+                    "leftValue": "={{ $json.plainText }}",
+                    "rightValue": "WEBVTT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notStartsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Other"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -3840,
+        680
+      ],
+      "id": "535a49dd-a593-4de1-bb21-d9bf7a80cf11",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "errorMessage": "We only support notes that contain valid WebVTT text content"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -3500,
+        900
+      ],
+      "id": "a0fa1fe6-5c9d-4fd7-8450-98e1d2fce539",
+      "name": "Stop and Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get input from the n8n node\nconst webVTTInput = $input.first().json.webVTT;\n\nfunction parseWebVTT(webVTT) {\n  const entries = [];\n  let sourceUri = null;\n\n  const lines = webVTT.replace(/\\r/g, '').split('\\n').filter(l => l.trim() !== '');\n  let currentTime = null;\n\n  for (let i = 0; i < lines.length; i++) {\n    const line = lines[i];\n\n    // Extract source URI if available\n    if (!sourceUri && line.startsWith(\"NOTE\") && line.includes(\"@SourceUri\")) {\n      const match = line.match(/@SourceUri:\\s*'(.*?)'/);\n      if (match) {\n        sourceUri = match[1];\n      }\n    }\n\n    // If line is a timestamp, store it\n    if (line.includes('-->')) {\n      currentTime = line.trim();\n      continue;\n    }\n\n    // If line is a speaker line\n    if (line.startsWith('<v')) {\n      const match = line.match(/<v spk_(\\d+)>/);\n      const speakerId = match ? parseInt(match[1], 10) : null;\n      const speakerMessage = line.replace(/<v spk_\\d+>/, '').trim();\n\n      entries.push({\n        timeStampRange: currentTime,\n        speakerMessage,\n        speakerId\n      });\n    }\n  }\n\n  return [{ json: { webVTTSourceUri: sourceUri, webVTTEntries: entries } }];\n}\n\nreturn parseWebVTT(webVTTInput);\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2880,
+        660
+      ],
+      "id": "e015a16a-774c-4fed-80b5-e6d9139bece4",
+      "name": "Extract WebVTT entries as JSON1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "679daecd-4a17-47ed-bb81-0f1f14d64fa7",
+              "name": "webVTT",
+              "value": "={{ $json.plainText }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3280,
+        660
+      ],
+      "id": "2db464de-b4ad-4480-b2f0-f7b17b13e27b",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "webVTTEntries",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -2560,
+        660
+      ],
+      "id": "2a680be2-d5fe-4603-8cf9-2afcf917dc6b",
+      "name": "Split out entries"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "scenarios",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -2020,
+        660
+      ],
+      "id": "4e94d256-7df0-4c97-81c4-e79f9dd9b039",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.all(); // Fetch all input items\n\n// Helper function to remove hyphens from object keys\nfunction removeHyphensFromKeys(obj) {\n  if (Array.isArray(obj)) {\n    return obj.map(removeHyphensFromKeys);\n  } else if (typeof obj === 'object' && obj !== null) {\n    return Object.entries(obj).reduce((acc, [key, value]) => {\n      const newKey = key.replace(/-/g, ''); // Remove hyphens from keys\n      acc[newKey] = removeHyphensFromKeys(value);\n      return acc;\n    }, {});\n  }\n  return obj;\n}\n\n// Helper function to convert JSON to GraphQL string\nfunction jsonToGraphQLString(obj) {\n  if (Array.isArray(obj)) {\n    return `[${obj.map(jsonToGraphQLString).join(', ')}]`;\n  } else if (typeof obj === 'object' && obj !== null) {\n    return `{ ${Object.entries(obj).map(([key, value]) => `${key}: ${jsonToGraphQLString(value)}`).join(', ')} }`;\n  } else if (typeof obj === 'string') {\n    return `\"${obj}\"`;\n  }\n  return obj;\n}\n\n// Process each input item\nconst output = input.map(item => {\n  const rootKey = Object.keys(item.json)[0]; // Get the root property name\n  const transformedJson = removeHyphensFromKeys(item.json[rootKey]); // Remove hyphens from keys in the JSON\n  return {\n    json: {\n      [rootKey]: jsonToGraphQLString(transformedJson) // Use root property name as the key\n    }\n  };\n});\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1780,
+        660
+      ],
+      "id": "46d60694-26e1-42d6-aa53-31ac9c1892d6",
+      "name": "Create GraphQL string1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c811683c-7b7a-4189-aca3-c45addb04f0c",
+              "name": "line",
+              "value": "={{ $json.speakerMessage }}",
+              "type": "string"
+            },
+            {
+              "id": "d6cc7e89-4df7-4585-8e60-69c0c8891c3a",
+              "name": "title",
+              "value": "={{ $json.speakerId == \"0\" ?  $('Webhook1').item.json.body.interviewerId : $('Webhook1').item.json.body.personaGuid }}",
+              "type": "string"
+            },
+            {
+              "id": "f304a0b0-381b-422e-b77d-b249ea2a3b2d",
+              "name": "_guid",
+              "value": "={{ \"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx\".replace(/[xy]/g, function (char) {\n        const random = Math.random() * 16 | 0; // Random integer between 0 and 15\n        const value = char === 'x' ? random : (random & 0x3 | 0x8); // Ensure 'y' matches 8, 9, A, or B\n        return value.toString(16); // Convert to hexadecimal\n    }); }}",
+              "type": "string"
+            },
+            {
+              "id": "10dd795d-2a58-4a21-b51d-ec7170e1743d",
+              "name": "meanTime",
+              "value": "={{ $json.timeStampRange }}",
+              "type": "string"
+            },
+            {
+              "id": "6aa15250-517c-4b52-bfbc-910f8f971078",
+              "name": "actorSymbolRef",
+              "value": "={{ $json.speakerId == \"0\" ?  $('Webhook1').item.json.body.interviewerId : $('Webhook1').item.json.body.personaGuid }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2240,
+        660
+      ],
+      "id": "0396e09a-7897-4732-90c4-39c9dc008e91",
+      "name": "Set GraphQL scenario fields1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This n8n Code node decodes base64-encoded text for all incoming items\n// Input should be like: data:text/plain;base64,BASE64_STRING\n\nreturn $input.all().map(item => {\n  const encoded = item.json?.data;\n\n  if (typeof encoded !== 'string' || !encoded.includes(',')) {\n    throw new Error(`Invalid or missing base64 input in item: ${JSON.stringify(item.json)}`);\n  }\n\n  const base64 = encoded.split(',')[1];\n  const decoded = Buffer.from(base64, 'base64').toString('utf-8');\n\n  return {\n    json: {\n      ...item.json,\n      plainText: decoded\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4140,
+        680
+      ],
+      "id": "19d6e928-24e4-4f7e-80ed-30d66b1b21f1",
+      "name": "Decode Base64"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data.uxmData.files[0].base64DataUrl",
+        "options": {
+          "destinationFieldName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -4820,
+        700
+      ],
+      "id": "42273397-7773-4b52-85cb-1f541a1a371f",
+      "name": "Split out file data"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.data }}",
+                    "rightValue": "data:text/plain",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    },
+                    "id": "292d7f04-e41a-416f-8293-6bfc9ec18bed"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Plain Text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c4004f4f-951c-4a1e-874a-b54efd2d1a0b",
+                    "leftValue": "={{ $json.data }}",
+                    "rightValue": "data:text/plain",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notStartsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Other"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -4540,
+        700
+      ],
+      "id": "159be878-51cc-4fdc-903f-ca9eb19696e5",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Unknown Mime Type in File header"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -4140,
+        900
+      ],
+      "id": "ea13a367-74d3-419b-9500-66b2ee495833",
+      "name": "Stop and Error1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2144cbd3-c6a6-463b-b9d0-e3740ea1490d",
+              "name": "scenarioGraphQLString",
+              "value": "={{ $json.scenarios.replaceAll(\"},\", \", action: CREATE },\").replaceAll(\"}]\", \", action: CREATE}]\") }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1500,
+        660
+      ],
+      "id": "f461c832-7e01-4247-b39c-d080ee7cf76f",
+      "name": "Set Create Scenario GraphQL string"
+    },
+    {
+      "parameters": {
+        "html": "<!DOCTYPE html>\n\n<div>\n  Successfully created <a href=\"https://app.leanscope.io/#/go?repository=1372&path=%2Fscenarios%2F{{ $json.data.repository.scenariosMutated[0]._guid }}\">scenario</a>\n</div>"
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        -840,
+        660
+      ],
+      "id": "ce54d177-0f18-41fb-ab27-1e69db1c4230",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "html": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        660
+      ],
+      "id": "749e6b03-1bb1-48ae-bff9-62a2521d80e0",
+      "name": "Markdown"
+    },
+    {
+      "parameters": {
+        "content": "## Get file content",
+        "height": 840,
+        "width": 2120
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -5240,
+        420
+      ],
+      "typeVersion": 1,
+      "id": "de42799a-13b2-4b03-af4c-8d1e7e4785eb",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Extract WebVTT Entries",
+        "height": 840,
+        "width": 720
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -3060,
+        420
+      ],
+      "typeVersion": 1,
+      "id": "71739259-831f-4e5c-974e-8096f2e8e5b8",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Build scenario",
+        "height": 840,
+        "width": 1320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2300,
+        420
+      ],
+      "typeVersion": 1,
+      "id": "b34a961a-c563-4992-8955-b7b54cdcf640",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Return result",
+        "height": 840,
+        "width": 840
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -940,
+        420
+      ],
+      "typeVersion": 1,
+      "id": "18647c64-106d-4393-81ec-6b2c99c40d8f",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "endpoint": "={{ $json.body.aiApiBaseUrl +\"/graphql\"}}",
+        "requestFormat": "json",
+        "query": "=query {\n  uxmData(repositoryId: {{ $json.body.gitID }}, guidFilter: \"{{ $json.body.fileGuid }}\") {\n    files {\n      _guid\n      base64DataUrl\n    }\n  }\n} ",
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.headers.authorization }}"
+            }
+          ]
+        }
+      },
+      "id": "e456c51a-ceb6-42df-b5ee-0e693b2d1291",
+      "name": "Query file entity",
+      "type": "n8n-nodes-base.graphql",
+      "typeVersion": 1,
+      "position": [
+        -5160,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "endpoint": "={{ $('Webhook1').item.json.body.aiApiBaseUrl +\"/graphql\"}}",
+        "requestFormat": "json",
+        "query": "=mutation {\n  repository(\n    gitLabProjectId: {{ $('Webhook1').item.json.body.gitID }}\n    uxmDataInput: {\n      scenarios: {\n        _guid: \"{{ \"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx\".replace(/[xy]/g, function (char) {\n        const random = Math.random() * 16 | 0; // Random integer between 0 and 15\n        const value = char === 'x' ? random : (random & 0x3 | 0x8); // Ensure 'y' matches 8, 9, A, or B\n        return value.toString(16); // Convert to hexadecimal\n    }) }}\"\n        title: \"{{ $('Extract WebVTT entries as JSON1').item.json.webVTTSourceUri }}\"\n        interactions: \"\"\n        primaryActorRef: \"{{ $('Webhook1').item.json.body.personaGuid }}\"\n        type: AsIs\n        scenario: {{ $json.scenarioGraphQLString }}\n        environment: \"{{ $('Extract WebVTT entries as JSON1').item.json.webVTTSourceUri }}\"\n        action: CREATE\n      }\n    }\n  ) {\n    scenariosMutated {\n      _guid\n      title\n    }\n  }\n}",
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Webhook1').item.json.headers.authorization }}"
+            }
+          ]
+        }
+      },
+      "id": "7ef6fb20-fb1b-40d7-b18f-678ddde90b07",
+      "name": "Create scenario (legacy style)",
+      "type": "n8n-nodes-base.graphql",
+      "typeVersion": 1,
+      "position": [
+        -1140,
+        660
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Query file entity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Extract WebVTT entries as JSON1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract WebVTT entries as JSON1": {
+      "main": [
+        [
+          {
+            "node": "Split out entries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Create GraphQL string1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create GraphQL string1": {
+      "main": [
+        [
+          {
+            "node": "Set Create Scenario GraphQL string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set GraphQL scenario fields1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split out entries": {
+      "main": [
+        [
+          {
+            "node": "Set GraphQL scenario fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decode Base64": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split out file data": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Decode Base64",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Create Scenario GraphQL string": {
+      "main": [
+        [
+          {
+            "node": "Create scenario (legacy style)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query file entity": {
+      "main": [
+        [
+          {
+            "node": "Split out file data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create scenario (legacy style)": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1a92e80d-591e-4d8c-a760-a617b9cb57ff",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "09445858a5cbfb3b02020e607e5f87624f8d7038eec126c76b7cad144342139c"
+  },
+  "id": "YRFcV0U10rD1YOGA",
+  "tags": [
+    {
+      "createdAt": "2025-02-26T13:11:50.456Z",
+      "updatedAt": "2025-02-26T13:11:50.456Z",
+      "id": "WVGDXdSp1eAtRKnY",
+      "name": "👩‍🔬UX Research"
+    }
+  ]
+}
