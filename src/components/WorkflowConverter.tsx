@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import mermaid from 'mermaid';
-import MDEditor from '@uiw/react-md-editor';
+// import MDEditor from '@uiw/react-md-editor';
+import { convertN8nToMermaid } from '../services/n8nConverter';
 
 interface Node {
   id: string;
@@ -11,6 +12,23 @@ interface Node {
     y: number;
   };
   name?: string;
+  parameters?: {
+    rules?: {
+      values?: Array<{
+        conditions?: {
+          conditions?: Array<{
+            leftValue: string;
+            rightValue: string;
+            operator: {
+              type: string;
+              operation: string;
+            };
+          }>;
+        };
+        outputKey?: string;
+      }>;
+    };
+  };
 }
 
 interface Connection {
@@ -36,46 +54,114 @@ const WorkflowConverter = () => {
       securityLevel: 'loose',
       flowchart: {
         htmlLabels: true,
-        curve: 'basis'
+        curve: 'basis',
+        rankSpacing: 50,
+        nodeSpacing: 50
       }
     });
   }, []);
 
-  const convertToMermaid = (workflow: Workflow) => {
-    let mermaidCode = 'flowchart TD;\n';
+  const getNodeLabel = (node: Node) => {
+    const nodeType = node.type.split('.').pop() || '';
+    const nodeName = node.name || nodeType;
     
-    // Add nodes
-    workflow.nodes.forEach((node) => {
-      const nodeLabel = node.name || node.type.split('.').pop() || node.id;
-      mermaidCode += `    ${node.id}["${nodeLabel}"];\n`;
-    });
-
-    // Add connections
-    Object.entries(workflow.connections).forEach(([sourceId, connections]) => {
-      if (Array.isArray(connections)) {
-        connections.forEach((connection) => {
-          const arrow = connection.sourceHandle === 'else' ? '-.->' : '-->';
-          mermaidCode += `    ${sourceId} ${arrow} ${connection.target};\n`;
-        });
-      }
-    });
-
-    return mermaidCode;
+    // Handle special node types
+    if (nodeType === 'If' || nodeType === 'Switch') {
+      return `${nodeName}\n[Condition]`;
+    }
+    
+    return nodeName;
   };
+
+  const getConnectionStyle = (node: Node, connection: Connection) => {
+    const nodeType = node.type.split('.').pop() || '';
+    
+    if (nodeType === 'If') {
+      return connection.sourceHandle === 'true' ? '-->' : '-.->';
+    }
+    
+    if (nodeType === 'Switch') {
+      // For Switch nodes, use the outputKey as the condition label
+      const switchNode = node as Node & { parameters?: { rules?: { values?: Array<{ outputKey?: string }> } } };
+      const outputKey = switchNode.parameters?.rules?.values?.find(v => v.outputKey === connection.sourceHandle)?.outputKey;
+      return outputKey ? '-->' : '-.->';
+    }
+    
+    return '-->';
+  };
+
+  const getConnectionLabel = (node: Node, connection: Connection) => {
+    const nodeType = node.type.split('.').pop() || '';
+    
+    if (nodeType === 'Switch') {
+      const switchNode = node as Node & { parameters?: { rules?: { values?: Array<{ outputKey?: string }> } } };
+      const outputKey = switchNode.parameters?.rules?.values?.find(v => v.outputKey === connection.sourceHandle)?.outputKey;
+      return outputKey ? `|${outputKey}|` : '';
+    }
+    
+    if (nodeType === 'If') {
+      return connection.sourceHandle ? `|${connection.sourceHandle}|` : '';
+    }
+    
+    return '';
+  };
+
+  // This function is now unused since convertN8nToMermaid is in a separate file
+  // const convertToMermaid = (workflow: Workflow) => {
+  //   let mermaidCode = 'flowchart TB;\n';
+    
+  //   // Add nodes
+  //   workflow.nodes.forEach((node) => {
+  //     const nodeLabel = getNodeLabel(node);
+  //     mermaidCode += `    ${node.id}["${nodeLabel}"];\n`;
+  //   });
+
+  //   // Add connections
+  //   Object.entries(workflow.connections).forEach(([sourceId, connections]) => {
+  //     if (Array.isArray(connections)) {
+  //       const sourceNode = workflow.nodes.find(n => n.id === sourceId);
+  //       if (sourceNode) {
+  //         connections.forEach((connection) => {
+  //           const arrow = getConnectionStyle(sourceNode, connection);
+  //           const label = getConnectionLabel(sourceNode, connection);
+  //           mermaidCode += `    ${sourceId} ${arrow}${label} ${connection.target};\n`;
+  //         });
+  //       }
+  //     }
+  //   });
+
+  //   return mermaidCode;
+  // };
 
   const renderDiagram = useCallback(async (code: string) => {
     if (mermaidRef.current) {
       try {
         mermaidRef.current.innerHTML = '';
-        const { svg } = await mermaid.render('mermaid-diagram', code);
+        // Use the raw code for rendering
+        const cleanCode = code.trim();
+        if (!cleanCode) { // Also check for empty code after trimming
+          mermaidRef.current.innerHTML = 'Error: Empty Mermaid diagram.';
+          return;
+        }
+        const { svg } = await mermaid.render('mermaid-diagram', cleanCode);
         if (mermaidRef.current) {
           mermaidRef.current.innerHTML = svg;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error rendering diagram:', error);
+        if (mermaidRef.current) {
+           mermaidRef.current.innerHTML = `Error rendering diagram: ${(error as Error).message || error}`;;
+        }
       }
     }
   }, []);
+
+   // Effect to render the diagram when mermaidDiagram state changes and showCode is false
+  useEffect(() => {
+    if (mermaidDiagram && !showCode) {
+      renderDiagram(mermaidDiagram);
+    }
+  }, [mermaidDiagram, showCode, renderDiagram]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -83,18 +169,19 @@ const WorkflowConverter = () => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const workflow = JSON.parse(e.target?.result as string) as Workflow;
-          const mermaidCode = convertToMermaid(workflow);
-          setMermaidDiagram(mermaidCode);
-          renderDiagram(mermaidCode);
-        } catch (error) {
+          const n8nJsonString = e.target?.result as string;
+          const mermaidCode = convertN8nToMermaid(n8nJsonString);
+          setMermaidDiagram(mermaidCode); // Store raw mermaid code
+          // No immediate render here, let the useEffect handle it when showCode is false
+          // renderDiagram(mermaidCode); 
+        } catch (error: unknown) {
           console.error('Error parsing workflow:', error);
-          alert('Error parsing workflow file. Please make sure it\'s a valid n8n workflow JSON.');
+          alert(`Error parsing workflow file: ${(error as Error).message || error}`);
         }
       };
       reader.readAsText(file);
     }
-  }, [renderDiagram]);
+  }, [/* Removed renderDiagram dependency */]); // Removed renderDiagram as dependency to avoid infinite loop
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -145,19 +232,19 @@ const WorkflowConverter = () => {
           </div>
           
           {showCode ? (
-            <MDEditor
-              value={`\`\`\`mermaid\n${mermaidDiagram}\n\`\`\``}
-              preview="live"
-              hideToolbar={true}
-              height={400}
-              onChange={(value) => {
-                if (value) {
-                  const code = value.replace(/```mermaid\n|\n```/g, '');
-                  setMermaidDiagram(code);
-                  renderDiagram(code);
-                }
-              }}
-            />
+            <pre className="mermaid-code-output" style={{
+              textAlign: 'left',
+              backgroundColor: '#f4f4f4',
+              padding: '10px',
+              borderRadius: '4px',
+              overflowX: 'auto',
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word',
+              fontFamily: 'Monaco, Menlo, Ubuntu Mono, Consolas, source-code-pro, monospace',
+              fontSize: '14px'
+            }}>
+              {mermaidDiagram}
+            </pre>
           ) : (
             <div ref={mermaidRef} className="mermaid-diagram" />
           )}
