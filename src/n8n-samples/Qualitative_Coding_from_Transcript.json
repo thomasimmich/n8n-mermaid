@@ -1,0 +1,690 @@
+{
+  "name": "🎨 Qualitative Coding from Transcript",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Lese den Originaltext und die Codes aus dem \"Edit Fields\" Node\nconst transcriptText = $('Set Transcript Text (from plainText)').item.json.transcriptText;\nconst codesRaw = $('Merge codes').first().json.codes;\nconst transcriptSummary = $('Summarize transcript').first().json.message.content;\n\n// Konvertiere Codes in ein Array mit Namen und Descriptions\nconst codes = codesRaw.map(code => ({\n  name: code.name.trim(),\n  description: code.description ? code.description.trim() : \"\"\n}));\n\n// Lese den JSON mit den Fragmenten aus dem vorherigen Node (Fragmente befinden sich in message.content)\nconst message = $input.first().json.message;\nconst fragments = message.content.fragments || [];\n\n// Funktion, um für jeden Code einen eindeutigen Pastell-Farbwert zu generieren (gleichmäßig verteilte Hues)\nfunction generateDistinctPastelColors(codes) {\n  const colors = {};\n  const n = codes.length;\n  for (let i = 0; i < n; i++) {\n    const hue = Math.floor((360 * i) / n);\n    colors[codes[i].name] = `hsl(${hue}, 70%, 85%)`;\n  }\n  return colors;\n}\n\nconst codeColors = generateDistinctPastelColors(codes);\n\n// Zähle die Fragmente je Code (für die Legende)\nconst codeCounts = {};\ncodes.forEach(code => {\n  codeCounts[code.name] = 0;\n});\nfragments.forEach(fragment => {\n  const cat = fragment.category.trim();\n  if (codeCounts.hasOwnProperty(cat)) {\n    codeCounts[cat]++;\n  } else {\n    codeCounts[cat] = 1;\n  }\n});\n\n// Hilfsfunktion: Normalisiert Text, entfernt Timestamps und Whitespaces\nfunction normalizeText(text) {\n  return text\n    // Remove timestamp patterns like \"00:04:23.000 --> 00:04:28.000\"\n    .replace(/\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\s*-->\\s*\\d{2}:\\d{2}:\\d{2}\\.\\d{3}/g, '')\n    // Remove any remaining timestamps\n    .replace(/\\d{2}:\\d{2}:\\d{2}\\.\\d{3}/g, '')\n    // Normalize whitespace and line breaks\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .toLowerCase();\n}\n\n// Hilfsfunktion: Erzeugt Regex-Muster für lose Übereinstimmung\nfunction looseRegex(text) {\n  // First normalize the text\n  const normalizedText = normalizeText(text);\n  // Split into words and escape special characters\n  const words = normalizedText.split(/\\s+/).map(word => \n    word.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')\n  );\n  // Create a pattern that allows for some flexibility in word order and spacing\n  return new RegExp(words.join('\\\\s*'), 'gi');\n}\n\nlet highlightedText = transcriptText;\n\nsortedFragments = fragments.sort((a, b) => b.textFragment.length - a.textFragment.length);\n\nsortedFragments.forEach(fragment => {\n  const cat = fragment.category.trim();\n  const color = codeColors[cat] || \"#FFFF00\";\n  const fragText = fragment.textFragment.trim();\n  const regex = looseRegex(fragText);\n\n  highlightedText = highlightedText.replace(regex, match => \n    `<span title=\"Code: ${cat}\" style=\"background-color: ${color};\">${match}</span>`\n  );\n});\n\n// Erstelle die Legende als HTML\nlet legendHtml = `<div class=\"legend\"><h3>Legende</h3><ul>`;\ncodes.forEach(code => {\n  legendHtml += `<li>\n    <span style=\"display:inline-block; width: 20px; height: 20px; background-color: ${codeColors[code.name]}; margin-right: 10px;\"></span>\n    <strong>${code.name}</strong> (${code.description || \"Keine Beschreibung\"}): ${codeCounts[code.name] || 0} Fragmente\n  </li>`;\n});\nlegendHtml += `</ul></div>`;\n\n// Erstelle das finale HTML-Dokument\nconst fullHtml = `\n    <div class=\"summary\"><h1>Summary</h1></div>\n    <div>${transcriptSummary}</div>\n    <div>${legendHtml}</div>\n    <div>${highlightedText}</div>\n`;\n\nreturn { html: fullHtml };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4980,
+        420
+      ],
+      "id": "6087a20d-29c1-46d6-9a1a-c9008c0e4e25",
+      "name": "Generate HTML"
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawCodes = $('Webhook').first().json.body.codes; // \"motivations, frustrations, challenges\"\nlet words = rawCodes.split(',').map(word => word.trim());\n\n// Array von Objekten mit name und leerer description\nlet codes = words.map(word => ({\n  name: word,\n  description: \"\"\n}));\n\n// Return mit dem gewünschten Format\nreturn [\n  {\n    codes: codes\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2680,
+        300
+      ],
+      "id": "c279ebeb-ee69-4db6-a566-5cc8dcef1227",
+      "name": "Extract Codes to an array"
+    },
+    {
+      "parameters": {
+        "content": "### KEINE KUNDENDATEN !\n\nBitte Testdaten verwenden, da Verwendung von OpenAI-Node.\n\nInterviewtranskript: https://webdav.intranet.centigrade.de/Centigrade/UX-Academy/P24-0146-InternesAI/03-Production/QualitativeCoding/Interview01-ScopedUserResearch-InternalAITraining.pdf\n\nCodebook: https://webdav.intranet.centigrade.de/Centigrade/UX-Academy/P24-0146-InternesAI/03-Production/QualitativeCoding/Codebook-ScopedUserResearch-InternalAITraining.pdf",
+        "height": 400,
+        "width": 300
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        -40
+      ],
+      "id": "1d5d1a62-a25e-4780-a50a-bfc8318011a3",
+      "name": "Sticky Note12"
+    },
+    {
+      "parameters": {
+        "content": "# Correct format from VTT\n\nCode, der eine VTT‑Datei verarbeitet. Er macht Folgendes:\n* Entfernt den WEBVTT‑Header und alle Timestamp-Zeilen (da sie nicht in den <v …> Tags stehen, werden sie per Regex automatisch ignoriert).\n* Extrahiert alle Segmente in Form von <v Sprecher>Text</v>.\n* Entfernt alle Zeilenumbrüche innerhalb eines Segments (also “Linebreaks mitten im Satz” werden durch ein Leerzeichen ersetzt).\n* Führt aufeinanderfolgende Segmente desselben Sprechers zusammen.\n* Gibt am Ende jeden (zusammengeführten) Sprecherabschnitt als HTML‑Paragraph zurück, wobei ein <br> als Trenner zwischen den Abschnitten verwendet wird.\n\n\n## Funktionsweise im Überblick\n* Segment-Extraktion:\nMithilfe des regulären Ausdrucks /\\<v\\s+([^>]+)\\>([\\s\\S]*?)\\<\\/v\\>/g werden alle Abschnitte gefunden, in denen der Sprecher und der zugehörige Text stehen.\n* Zeilenumbrüche innerhalb eines Segments entfernen:\nInnerhalb der erfassten Textblöcke werden alle \\n durch ein Leerzeichen ersetzt.\n* Zusammenführen von Segmente desselben Sprechers:\nWerden aufeinanderfolgende Segmente desselben Sprechers gefunden, werden deren Inhalte zusammengefügt.\n* HTML-Ausgabe:\nDie einzelnen (zusammengeführten) Segmente werden formatiert (Sprecher fett) und durch <br> voneinander getrennt.",
+        "height": 620,
+        "width": 660
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        600,
+        1000
+      ],
+      "typeVersion": 1,
+      "id": "b5b3504d-6b46-465f-8781-be778dc21d6e",
+      "name": "Sticky Note14"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Webhook').item.json.body.codingMethod }}",
+                    "rightValue": "=Deductive",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "73339ead-477b-4f66-bacd-6927a2627728"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Deductive"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7fec4db2-0f92-43c3-83e4-c86f28f27c23",
+                    "leftValue": "={{ $('Webhook').item.json.body.codingMethod }}",
+                    "rightValue": "Inductive",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Inductive"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2280,
+        440
+      ],
+      "id": "b285f976-940b-4e48-93f0-081ba0892558",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "content": "# Transkript analysieren\n\nNutzt OpenAI, um das Transkript auf das Vorhandensein der Codes zu prüfen und die Textfragmente zu identifizieren",
+        "height": 920,
+        "width": 520
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4240,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "0f89b9ec-c363-437e-be65-569ed20ad77b",
+      "name": "Sticky Note15"
+    },
+    {
+      "parameters": {
+        "content": "# Codes ermitteln\nAbhängig von der Auswahl im Input Form werden \n* entweder die vom User angegebenen Codes übernommen \n* oder die Codes per AI aus dem Text automatisch ermittelt",
+        "height": 920,
+        "width": 1420
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2200,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "8ea16a1c-6ac4-44af-b64a-972d4930d920",
+      "name": "Sticky Note16"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fbc2c29b-46d4-409b-a65c-aa02a7e3d20d",
+              "name": "codes",
+              "value": "={{ $json.codes }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3000,
+        300
+      ],
+      "id": "c76466f3-846d-499a-9911-059807489037",
+      "name": "Set codes from user"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cd658055-1e09-4c15-a624-5e3c1437923b",
+              "name": "codes",
+              "value": "={{ $json.message.content.codes }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3000,
+        540
+      ],
+      "id": "17e41d13-eaa2-450e-961a-e4ea90732cd7",
+      "name": "Set codes from analysis"
+    },
+    {
+      "parameters": {
+        "content": "# Transkript-Text extrahieren und aufbereiten\nAbhängig vom Dateiformat wird der Transkript-Text aus der hochgeladenen Datei extrahiert. Anschließend wird der Text gesäubert und aufbereitet, sodass er besser dargestellt werden kann.",
+        "height": 920,
+        "width": 1060
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1080,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "f51d3083-fcb6-405a-b79e-c76e996f2f2c",
+      "name": "Sticky Note17"
+    },
+    {
+      "parameters": {
+        "content": "# Ergebnis ausgeben\n\nÜber einen mit ChatGPT 4o generierte Code werden die Fragmente im Originaltext eingefärbt und eine Legende mit einem Farbwert pro Code erstellt. Hierzu wird ein HTML generiert.\n\nAnschließend wird das HTML bei Abschluss des Workflows über einen Form Ending Node ausgegeben.\n",
+        "height": 920,
+        "width": 780
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4800,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "e6c7b602-7df7-48e8-874c-8de171398903",
+      "name": "Sticky Note18"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        3400,
+        420
+      ],
+      "id": "9148aefc-6a17-404f-a6f4-ec9ea3e48b88",
+      "name": "Merge codes"
+    },
+    {
+      "parameters": {
+        "content": "# Transkript zusammenfassen\n\nNutzt OpenAI, um eine Zusammenfassung des Transkripts zu erstellen",
+        "height": 920,
+        "width": 520
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3680,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "e5129baf-796a-48e5-96d5-26b032818821",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Your task:\n\nCreate a concise and structured summary of the following interview / conversation transcript. Focus on capturing the most relevant information while ensuring clarity and objectivity. \n\nInclude the following key points:\n\n* Basic information\n** Interviewer: Who conducted the interview?\n** Participant: Who was interviewed / the conversation partner? What was his or hers role / job title, what company is she working for, what else describes her?\n** Topic & Context: What was the conversation about? Was there a specific reason or background for the discussion?\n* Key Points: What were the main statements, arguments, or discussion topics? \n** Pain Points / Challenges\n** Needs & Expectations\n** Goals & Motivations\n** Current Workflows / Tools Used\n** Barriers to Adoption (e.g., hesitations, usability issues)\n** Opportunities for Improvement (Ideas & suggestions)\n* Important Quotes: Include key quotes inside <blockquote> tags to highlight important participant statements.\n* Top 3 Takeaways: A concise summary of the most important findings\n* Next Steps: List concrete action items, deadlines, or responsibilities that were agreed upon.\n\nEnsure the summary remains neutral, objective, and concise, avoiding unnecessary details while maintaining the core meaning of the discussion.\n\nSummarize the interview factually without adding subjective interpretations.\n\nThe summary should be in the original input language of the interview.\n\nReturn the summary in a structured HTML format with headings and bullet points for readability.\n\nExample Output Format in HTML\n\n    <h1>Interview Summary</h1>\n\n    <h2>Basic Information</h2>\n    <p><strong>Interviewer:</strong> Jane Doe</p>\n    <p><strong>Participant:</strong> John Smith (Senior UX Researcher, ABC Corp.)</p>\n    <p><strong>Topic & Context:</strong> Usability challenges with ABC Corp’s internal research tool</p>\n\n    <h2>Key Points</h2>\n    \n    <h3>Pain Points / Challenges</h3>\n    <ul>\n        <li>Difficulty in retrieving past research findings efficiently</li>\n        <li>Fragmented documentation across multiple tools</li>\n    </ul>\n\n    <h3>Needs & Expectations</h3>\n    <ul>\n        <li>A centralized repository for UX research insights</li>\n        <li>Better search functionality to find relevant data</li>\n    </ul>\n\n    <h3>Goals & Motivations</h3>\n    <ul>\n        <li>Increase efficiency in accessing and reusing research</li>\n        <li>Reduce duplicate work within the team</li>\n    </ul>\n\n    <h3>Current Workflows / Tools Used</h3>\n    <ul>\n        <li>Google Drive for documentation</li>\n        <li>Miro for visual brainstorming</li>\n        <li>Notion for research summaries</li>\n    </ul>\n\n    <h3>Barriers to Adoption</h3>\n    <ul>\n        <li>Unclear value proposition for stakeholders</li>\n        <li>Concerns about the learning curve for new tools</li>\n    </ul>\n\n    <h3>Opportunities for Improvement</h3>\n    <ul>\n        <li>Provide structured templates for research documentation</li>\n        <li>Integrate with existing tools like Notion and Google Drive</li>\n    </ul>\n\n    <h2>Important Quotes</h2>\n    <blockquote>\"We often lose valuable research because there’s no centralized place to store and search it effectively.\"</blockquote>\n    <blockquote>\"Teams keep reinventing the wheel because they don’t know what research already exists.\"</blockquote>\n\n    <h2>Top 3 Takeaways</h2>\n    <ol>\n        <li>There is a strong need for a **centralized UX research repository**.</li>\n        <li>Better **searchability and integration** with existing tools is crucial.</li>\n        <li>Stakeholder buy-in is a major challenge for adoption.</li>\n    </ol>\n\n    <h2>Next Steps</h2>\n    <ul>\n        <li>Demo existing repository solutions to the team (by March 15)</li>\n        <li>Gather feedback on potential integration options (by March 22)</li>\n        <li>Propose a pilot project for a centralized research tool (by April 1)</li>\n    </ul>\n\n\n\nInterview Transcript:\n\n{{ $('Set Transcript Text (from plainText)').item.json.transcriptText }}",
+              "role": "system"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        3800,
+        420
+      ],
+      "id": "4e1609d1-2582-4a89-a9e7-9ff361ddb082",
+      "name": "Summarize transcript",
+      "credentials": {
+        "openAiApi": {
+          "id": "g0WqluLdVRwnhYeN",
+          "name": "OpenAI (Rainer)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=# Task\nApply qualitative coding to a given interview transcript using a predefined list of codes. Identify relevant text fragments, classify them under the appropriate category, and return the results in a structured JSON format.\n\n⸻\n\n# Input Format\n1.\tTranscript Text: A block of text representing an interview or qualitative data source.\n2.\tList of Codes: A predefined list of code names (with optional descriptions) describing key themes or concepts.\n\n## Example for List of Codes:\n\n[\n  {\"name\": \"Work Stress\", \"description\": \"Mentions of workload, deadlines, or pressure at work.\"},\n  {\"name\": \"Job Satisfaction\", \"description\": \"Statements about job enjoyment, motivation, or fulfillment.\"}\n]\n\n⸻\n\n# Output Format (JSON Structure)\nReturn a single, valid JSON object in this structure:\n\n{\n  \"transcriptId\": \"<UNIQUE_IDENTIFIER>\",\n  \"source\": \"Interview on DD.MM.YYYY (optional)\",\n  \"fragments\": [\n    {\n      \"category\": \"<CODE>\",\n      \"startPosition\": <START_INDEX>,\n      \"endPosition\": <END_INDEX>,\n      \"textFragment\": \"<EXACT_TEXT_SEGMENT>\"\n    }\n  ]\n}\n\nField Explanation:\n* \"transcriptId\": A unique identifier for the transcript.\n* \"source\" (optional): Metadata such as interview date or filename.\n* \"fragments\": A list of coded text segments where:\n* \"category\": Matches one of the predefined codes.\n* \"startPosition\" and \"endPosition\": Character indices (0-based or 1-based, be consistent).\n* \"textFragment\": The exact text segment from the transcript that corresponds to the category.\n\n\nInstructions:\n* Read the transcript carefully and in full. Do not skip any sections.\nEnsure that the entire transcript is examined without skipping any sections.\n* Identify speaker roles — focus only on statements from the interviewee or participant. \n* Ignore passages from the interviewer/researcher and focus only on the statements made by the interviewee/participant.\n* Use the predefined codes to categorize relevant text. (Partial matches are acceptable if they align reasonably with a code’s meaning.)\n* Keep fragments concise — avoid overly long text segments.\n* Mark each fragment with its start and end character positions within the original text.\n* If multiple codes apply to a single text fragment, create separate entries or list multiple codes as needed.\n* Return a valid JSON object containing these coded fragments in the \"fragments\" array.\n\n!!!IMPORTANT!!!\n* The resulting text fragments from your output will in a later step be matched with the original interview transcript. So if you modify the text in the fragments, the matching will not work properly!\n* In a fragment, keep the original text from the transcript - word by word, character by character, even with all timestamp information, in case there are any; Do NOT change the text in the fragments, do NOT correct the sentences in the fragments and do NOT leave out words in the fragments; otherwise a later text-matching won't work and you break the flow!\n* Do NOT create fragments that span multiple speakers. If a single idea extends over multiple turns but includes both interviewer and participant text, split those appropriately so that each coded fragment belongs exclusively to one speaker’s statement; otherwise a later text-matching won't work and you break the flow!\n\n⸻\n\n# Example\n\n## Input Transcript:\n\nInterviewer: How do you feel about your job?  \nParticipant: I really enjoy it. The team is supportive, and I feel motivated every day. However, sometimes the workload is overwhelming, especially with tight deadlines.  \n\n## List of Codes:\n[\n  {\"name\": \"Job Satisfaction\", \"description\": \"Statements about job enjoyment, motivation, or fulfillment.\"},\n  {\"name\": \"Work Stress\", \"description\": \"Mentions of workload, deadlines, or pressure at work.\"}\n]\n\n## Expected Output JSON:\n\n{\n  \"transcriptId\": \"interview_001\",\n  \"source\": \"Interview on 07.03.2025\",\n  \"fragments\": [\n    {\n      \"category\": \"Job Satisfaction\",\n      \"startPosition\": 34,\n      \"endPosition\": 96,\n      \"textFragment\": \"I really enjoy it. The team is supportive, and I feel motivated every day.\"\n    },\n    {\n      \"category\": \"Work Stress\",\n      \"startPosition\": 98,\n      \"endPosition\": 178,\n      \"textFragment\": \"However, sometimes the workload is overwhelming, especially with tight deadlines.\"\n    }\n  ]\n}\n\n\nAdditional Guidelines:\n* Partial matches are allowed if a text segment is relevant but does not perfectly fit the definition.\n* Avoid assigning multiple overlapping categories unless the segment is clearly relevant to more than one code.\n* Use the full context of the transcript when applying codes.\n\n\n\n⸻\n\n# Input\n\n## Categories / Codes:\n{{ JSON.stringify($('Merge codes').item.json.codes, null, 2) }}\n\n## Interview Transcript:\n\n{{ $('Set Transcript Text (from plainText)').item.json.transcriptText }}\n\n\n",
+              "role": "system"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "temperature": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        4400,
+        420
+      ],
+      "id": "c82291bd-4125-4f0a-ae2d-ed532935d822",
+      "name": "Identify topics in transcript",
+      "credentials": {
+        "openAiApi": {
+          "id": "g0WqluLdVRwnhYeN",
+          "name": "OpenAI (Rainer)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Extract Codes to an array\n\n* Liest die kommagetrennte Liste aus dem Input-Formular.\n* Trennt Name und Description, falls eine in Klammern vorhanden ist.\n* Erstellt das gewünschte JSON-Format für die Codes.\n",
+        "height": 220,
+        "width": 660
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2660,
+        1020
+      ],
+      "typeVersion": 1,
+      "id": "118f8cfc-6886-4f58-8d5e-0e9415ba9fd3",
+      "name": "Sticky Note19"
+    },
+    {
+      "parameters": {
+        "content": "# Ideen zur Verbesserung:\n* Prompting optimieren\n** Textfragmente sollen nicht Speaker-übergreifend sein\n** Sprache der Summary beachten\n** Nicht nur Fragmente am Anfang und Ende raussuchen, sondern auch in der Mitte\n* Input Form in zwei Schritte aufteilen, sodass die Codes nur bei der entsprechenden Auswahl abgefragt werden\n* Wenn man Codes selber eingibt, dass eine Description mit eingegeben werden kann (die auch berücksichtigt wird)\n* Chunking des Transkripts ausprobieren\n* Speaker-Fragmente bei der Analyse entfernen (und erst später wieder mit anzeigen)\n* Ausprobieren, ob man deductive und inductive Coding in einem hat (z.B. dritte Option im Formular \"Use my codes and add relevant others\")",
+        "height": 360,
+        "width": 700,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1520,
+        400
+      ],
+      "typeVersion": 1,
+      "id": "afe38de8-5ed9-4bda-889e-a652b6454f69",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## To Dos\n* Ollma statt OpenAI\n* Prompting optimieren\n\t* Textfragmente sollen nicht Speaker-übergreifend sein\n\t* Sprache der Summary beachten\n\t* Nicht nur Fragmente am Anfang und Ende raussuchen, sondern auch in der Mitte\n* Input Form in zwei Schritte aufteilen, sodass die Codes nur bei der entsprechenden Auswahl abgefragt werden\n* Wenn man Codes selber eingibt, dass eine Description mit eingegeben werden kann (die auch berücksichtigt wird)\n* Chunking des Transkripts ausprobieren\n* Speaker-Fragmente bei der Analyse entfernen (und erst später wieder mit anzeigen)\n* Ausprobieren, ob man deductive und inductive Coding in einem hat (z.B. dritte Option im Formular \"Use my codes and add relevant others\")",
+        "height": 340,
+        "width": 700
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        800
+      ],
+      "id": "bccd7c50-d0d7-491c-ae65-c09d71618ab3",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Your task:\nIdentify potential topics within the given interview transcript that can be used for qualitative coding. Return the results in a structured JSON format.\n\nInstructions:\n* Examine the entire text carefully — do not skip any sections.\n* Identify recurring or deeply discussed topics that emerge throughout the transcript. \n* Avoid extracting topics based on just a single mention unless it is a core theme.\n* Focus on the interviewer’s or UX Researcher’s questions as cues for identifying key topics of discussion.\n* A topic (or code) should:\n** Represent a broader theme or subject rather than a single-word response.\n** Be discussed in depth rather than mentioned only once in passing.\n** Capture a significant idea that is relevant to the research context.\n* For each identified topic/code, provide:\n** A short name (max. 3 words) summarizing the topic.\n** A brief description explaining the context of the topic/code, including what aspect of it is discussed in the text.\n* In the description, leave out Names of the interview participants; provide a neutral description of the topic instead\n* Retain the original input language of the transcript when naming and describing topics.\n* Return a valid JSON object with all topics listed in  an array.\n\n\nExample JSON Output Format:\n\n{\n  \"codes\": [\n    {\n      \"name\": \"User frustration\",\n      \"description\": \"Users express difficulties with navigation and report feeling lost when using the app.\"\n    },\n    {\n      \"name\": \"Feature requests\",\n      \"description\": \"Participants suggest adding a dark mode and offline functionality.\"\n    }\n  ]\n}\n\n\nInterview Transcript (Example Text): {{ $('Set Transcript Text (from plainText)').item.json.transcriptText }}\n",
+              "role": "system"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        2580,
+        540
+      ],
+      "id": "2838dd2a-86bb-4547-97d8-3f420d0b9c3f",
+      "name": "Identify codes / topics with OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "g0WqluLdVRwnhYeN",
+          "name": "OpenAI (Rainer)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "endpoint": "={{ $json.body.aiApiBaseUrl +\"/graphql\"}}",
+        "requestFormat": "json",
+        "query": "=query {\n  uxmData(repositoryId: {{ $json.body.gitID }}, guidFilter: \"{{ $json.body.fileGuid }}\") {\n    files {\n      _guid\n      base64DataUrl\n    }\n  }\n} ",
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.headers.authorization }}"
+            }
+          ]
+        }
+      },
+      "id": "5557ab7f-8e98-4503-a516-53801491e996",
+      "name": "Query file entity",
+      "type": "n8n-nodes-base.graphql",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"gitId\":{{ $('Webhook').item.json.body.gitID }},\n  \"data\":{{ JSON.stringify($json.html) }}\n}\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        5240,
+        420
+      ],
+      "id": "1ab31a6a-8711-4e6e-aa15-4f9f51740550",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This n8n Code node decodes base64-encoded text for all incoming items\n// Input should be like: data:text/plain;base64,BASE64_STRING\n\nreturn $input.all().map(item => {\n  const encoded = item.json?.data;\n\n  if (typeof encoded !== 'string' || !encoded.includes(',')) {\n    throw new Error(`Invalid or missing base64 input in item: ${JSON.stringify(item.json)}`);\n  }\n\n  const base64 = encoded.split(',')[1];\n  const decoded = Buffer.from(base64, 'base64').toString('utf-8');\n\n  return {\n    json: {\n      ...item.json,\n      plainText: decoded\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        440
+      ],
+      "id": "5c18ae1a-056e-4655-be01-d9edeb8fbce5",
+      "name": "Decode Base64"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data.uxmData.files[0].base64DataUrl",
+        "options": {
+          "destinationFieldName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        440
+      ],
+      "id": "2bc66d38-024c-4f2f-b0cf-b9a771c16c36",
+      "name": "Split out file data"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-qualitative-coding",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        440
+      ],
+      "id": "7f97da18-90e5-4b19-8843-155c807bc9cc",
+      "name": "Webhook",
+      "webhookId": "4fc918b5-9a00-47e2-8604-97639dc22542"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3f6f79cf-61e6-4f6f-b65e-186f0de5128e",
+              "name": "transcriptText",
+              "value": "={{ $('Decode Base64').item.json.plainText }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1900,
+        440
+      ],
+      "id": "13692f71-6e3a-4bb8-bc64-383d4502f437",
+      "name": "Set Transcript Text (from plainText)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Generate HTML": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Codes to an array": {
+      "main": [
+        [
+          {
+            "node": "Set codes from user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Extract Codes to an array",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Identify codes / topics with OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set codes from user": {
+      "main": [
+        [
+          {
+            "node": "Merge codes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set codes from analysis": {
+      "main": [
+        [
+          {
+            "node": "Merge codes",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge codes": {
+      "main": [
+        [
+          {
+            "node": "Summarize transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize transcript": {
+      "main": [
+        [
+          {
+            "node": "Identify topics in transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identify topics in transcript": {
+      "main": [
+        [
+          {
+            "node": "Generate HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identify codes / topics with OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Set codes from analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query file entity": {
+      "main": [
+        [
+          {
+            "node": "Split out file data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decode Base64": {
+      "main": [
+        [
+          {
+            "node": "Set Transcript Text (from plainText)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split out file data": {
+      "main": [
+        [
+          {
+            "node": "Decode Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Query file entity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Transcript Text (from plainText)": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c915de16-a059-4fac-ade6-5a46ed738137",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "09445858a5cbfb3b02020e607e5f87624f8d7038eec126c76b7cad144342139c"
+  },
+  "id": "pxcBRevsf1CtcoUa",
+  "tags": []
+}

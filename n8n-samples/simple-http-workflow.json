@@ -1,0 +1,36 @@
+{
+  "nodes": [
+    {
+      "id": "1",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": { "x": 100, "y": 100 },
+      "parameters": {
+        "url": "https://api.example.com",
+        "method": "GET"
+      }
+    },
+    {
+      "id": "2",
+      "type": "n8n-nodes-base.set",
+      "position": { "x": 300, "y": 100 },
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "={{$json.status}}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "1": [
+      {
+        "source": "1",
+        "target": "2"
+      }
+    ]
+  }
+} 
